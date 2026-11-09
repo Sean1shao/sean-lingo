@@ -1,0 +1,48 @@
+import fs from 'node:fs/promises';
+const date = '2026-10-20';
+const style = 'body{font:16px/1.85 system-ui,"Microsoft YaHei",sans-serif;color:#263d30;background:#f7f9f4;margin:0}main{max-width:800px;margin:50px auto;padding:0 24px 50px}h1{font-size:32px}h2{font-size:21px;margin-top:30px}a{color:#315b40}small{color:#6b7d69}hr{border:0;border-top:1px solid #d9e3d3;margin:40px 0}li{margin:8px 0}';
+const page = (title, body) => `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — Sean Lingo</title><style>${style}</style></head><body><main><small>SEAN LINGO</small><h1>${title}</h1>${body}</main></body></html>`;
+await fs.mkdir('public/legal', { recursive: true });
+await fs.writeFile('public/legal/privacy.html', page('隐私政策 / Privacy Policy', `
+<p>适用于 Sean Lingo 1.0.0。更新日期：${date}。产品维护者联系方式：<a href="mailto:759112444@qq.com">759112444@qq.com</a>。</p>
+<h2>我们处理什么信息</h2>
+<p>当你点击划词按钮、选择右键翻译、使用快捷键或提交输入框内容时，扩展读取你主动查询的文字。播放发音时处理相应英文单词。普通网页上选择文字但没有发起查询，不会产生翻译请求。</p>
+<h2>在线服务与第三方</h2>
+<p>英汉和汉英词典、英文发音请求发送至 dict.youdao.com；有道句子翻译发送至 www.youdao.com；Google 句子翻译发送至 translate.googleapis.com。请求包含必要的查询文字、语言参数和网络元数据（例如第三方可见的 IP 地址）。自动模式先尝试 Google，失败后可能将同一文字发送至有道。词典无词条或请求失败时，查询也可能转交句子翻译服务。</p>
+<p>请求使用 HTTPS，设置为不附带浏览器凭据并不发送页面引用地址。扩展不主动发送所在网页 URL、完整页面正文或浏览历史。第三方服务对收到数据的处理和保留受其自身政策约束，开发者不能承诺其不记录请求或代表其删除数据。</p>
+<h2>本地存储与保留</h2>
+<p>源语言、目标语言、服务选择和划词按钮开关保存在浏览器本地，直到你修改、清除扩展数据或卸载。查询文字和结果不作为历史记录持久保存。后台内存最多缓存 100 条词典响应，每条有效期 5 分钟；缓存到期后不会被用于新查询，可能直到后续访问、缓存淘汰或后台进程关闭时才从内存移除。关闭/刷新查询窗口会释放该窗口的查询状态。在受限页面通过右键发起但无法显示浮窗的查询，文字可能暂存在浏览器会话存储，工具栏读取后删除，或随浏览器会话结束清除。</p>
+<h2>开发者与用途限制</h2>
+<p>本扩展不内置开发者查询日志服务器、广告、行为分析、账号系统或支付 SDK；不出售查询数据，也不将查询数据用于广告、信用评估或与翻译功能无关的用途。Sean Lingo 对用户数据的使用和传输遵守 Chrome Web Store 用户数据政策，包括 Limited Use 要求。运行时请求仅为提供用户发起的词典、翻译和发音功能。</p>
+<p>若你主动发送支持邮件，维护者会收到你的邮箱及你提供的内容，用于回复、排查或处理你提出的问题。来信可能保留至问题处理或相关沟通所需期限；你可以通过该邮箱申请删除维护者保留的邮件。本扩展不能删除由浏览器商店、邮件服务商或翻译服务商独立保存的数据。</p>
+<h2>免费使用与自愿赞助</h2>
+<p>所有当前功能免费使用。1.0.0 未集成赞助平台链接、支付流程或赞助者跟踪；自愿赞助不影响功能使用。未来如增加第三方赞助链接，将更新相应说明。</p>
+<h2>你的选择</h2>
+<p>可以在设置中选择翻译服务、关闭划词按钮，或停止查询以避免向在线翻译服务发送文字。卸载扩展可清除其浏览器本地数据。隐私问题请联系 759112444@qq.com。</p>
+<hr><section lang="en"><h2>English summary and policy</h2>
+<p>Last updated: ${date}. Applies to Sean Lingo 1.0.0. Contact: 759112444@qq.com.</p>
+<p>The extension reads the text you choose to query when you activate the selection button, context menu, shortcut, or toolbar form. Merely selecting text does not send a translation request. Pronunciation requests contain the chosen English word.</p>
+<p>Dictionary and pronunciation requests go to dict.youdao.com; Youdao sentence requests go to www.youdao.com; Google sentence requests go to translate.googleapis.com. Query text, language parameters, and necessary network metadata such as your IP address reach those providers. Automatic fallback or a missing dictionary entry can cause the same query to reach more than one provider.</p>
+<p>Requests use HTTPS, omit browser credentials, and omit the page referrer. The extension does not intentionally send the current page URL, full page content, or browsing history. Third-party data retention is governed by those providers; the developer cannot guarantee that providers do not log requests or delete their records on your behalf.</p>
+<p>Preferences are stored locally until changed or removed. Queries are not stored as persistent history. Up to 100 dictionary responses are cached in background memory for five minutes each; expired responses are not reused but may remain in memory until accessed, evicted, or the worker closes. Query views retain their current text while open. A pending context-menu query on a restricted page may be kept in browser session storage until read by the toolbar popup or the browser session ends.</p>
+<p>No developer query-logging server, advertisements, behavioral analytics, accounts, or payment SDK is built in. Query data is not sold or used for advertising, credit assessment, or unrelated purposes. Use and transfer of user data comply with the Chrome Web Store User Data Policy, including Limited Use requirements.</p>
+<p>If you email support, the maintainer receives your email address and message to respond to your request, retaining that correspondence as needed for the issue. You may request deletion of support messages held by the maintainer. Independent store, email-provider, and translation-provider records are outside the extension's control.</p>
+<p>All current features are free. Version 1.0.0 has no integrated sponsorship links or payment processing. You can change providers, disable the selection button, stop querying, or uninstall the extension to remove local extension data. Contact 759112444@qq.com for privacy questions.</p></section>
+`));
+await fs.writeFile('public/legal/open-source.html', page('开源声明 / Open Source', `
+<p>Sean Lingo 是基于 <a href="https://github.com/chengfengfengwang/lingo-link" target="_blank" rel="noreferrer">chengfengfengwang/lingo-link</a> 独立维护的修改版，继续按 GNU GPL version 3 分发。它与上游作者、Google、有道不存在官方关联。</p>
+<p>修改日期：${date}。主要修改包括精简 AI、生词本及账号同步模块，重整普通翻译、词典解析、界面及错误处理，并加入 Sean Lingo 名称、独立图标、隐私与发布材料。保留原有代码中的版权及许可通知。</p>
+<p>本程序按 GPL-3.0 提供，允许依照该许可证使用、研究、修改和再分发，不提供任何担保，包括适销性或特定用途适用性的默示担保。详情请阅读许可证。</p>
+<p>完整对应源码公开在 <a href="https://github.com/Sean1shao/sean-lingo" target="_blank" rel="noreferrer">Sean1shao/sean-lingo</a>。分发安装包时应同时提供匹配版本源码。也可通过 <a href="mailto:759112444@qq.com?subject=Sean%20Lingo%20source%20code">759112444@qq.com</a> 联系维护者获取该版本源码及构建资料。</p>
+<p><a href="LICENSE.txt">GNU GPL-3.0 许可证全文</a> · <a href="THIRD_PARTY_NOTICES.txt">第三方许可证与通知</a></p>
+<hr><section lang="en"><h2>Open-source notice</h2><p>Sean Lingo is an independently maintained modified version of Lingo Link by chengfengfengwang, distributed under GNU GPL version 3. Upstream copyright and license notices are preserved. It is not endorsed by the upstream author or translation providers.</p><p>Modifications dated ${date} include removal of AI/vocabulary/account modules, translation and dictionary changes, UI and error handling changes, and the Sean Lingo brand and artwork. The program is provided without warranty. Read the included GPL license for your rights and conditions.</p><p>Corresponding source and build materials are available at <a href="https://github.com/Sean1shao/sean-lingo">Sean1shao/sean-lingo</a>. Distributors should provide source matching each release. Contact 759112444@qq.com to obtain the matching source. Third-party runtime dependency notices are linked above.</p></section>
+`));
+let notices = 'Sean Lingo 1.0.0\nBased on chengfengfengwang/lingo-link, GNU GPL version 3.\nhttps://github.com/chengfengfengwang/lingo-link\nModified 2026-10-20; see NOTICE.md and LICENSE.\n\nRuntime third-party licenses:\n';
+for (const name of ['react', 'react-dom', 'scheduler']) {
+  const pkg = JSON.parse(await fs.readFile(`node_modules/${name}/package.json`, 'utf8'));
+  notices += `\n${'='.repeat(60)}\n${name} ${pkg.version}\n\n${await fs.readFile(`node_modules/${name}/LICENSE`, 'utf8')}\n`;
+}
+await fs.writeFile('THIRD_PARTY_NOTICES.txt', notices.trimEnd() + '\n');
+await fs.copyFile('THIRD_PARTY_NOTICES.txt', 'public/legal/THIRD_PARTY_NOTICES.txt');
+await fs.copyFile('LICENSE', 'public/legal/LICENSE.txt');
+console.log('Generated privacy, source and license pages.');

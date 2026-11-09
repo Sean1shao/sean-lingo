@@ -25,3 +25,11 @@ dist-ssr
 
 node_modules/
 dist/
+artifacts/
+release/
+reference/
+.env
+.env.*
+!.env.example
+*.pem
+*.key

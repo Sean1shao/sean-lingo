@@ -1,103 +1,77 @@
-import Browser from "webextension-polyfill";
-import type { ExtensionMessage, BackgroundFetchParam, ExternalMessage } from "./types";
-import { getSetting } from "./storage/sync";
-//const  screenshot = async () => {
-//   const res = await Browser.tabs.captureVisibleTab();
-//   const tabs = await Browser.tabs.query({
-//     active: true,
-//     currentWindow: true
-//   })
-//   const message: ExtensionMessage = {
-//     type: 'onScreenDataurl',
-//     payload: res
-//   }
-//   Browser.tabs.sendMessage(tabs[0].id!, message);
-// }
+import { getSettings, normalizeSettings } from './core/settings';
+import { parseGoogle } from './core/parsers';
+import { brand } from './core/brand';
 
-const backgroundFetch = async (param: BackgroundFetchParam) => {
-  const { url, method, responseType } = param;
-  const options: Record<string, unknown> = {
-    method: method ?? "GET",
-  };
-  if (param.body) {
-    options.body = param.body;
+const dictionaryCache = new Map<string, { value: unknown; until: number }>();
+async function request(url: string, json: boolean) {
+  const response = await fetch(url, { signal: AbortSignal.timeout(12000), credentials: 'omit', referrerPolicy: 'no-referrer' });
+  if (!response.ok) throw new Error(`服务暂时不可用（${response.status}）`);
+  return json ? response.json() : response.text();
+}
+function validateText(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error('请输入需要翻译的文字');
+  if (value.length > 3000) throw new Error('每次最多翻译 3000 个字符，请缩短选中文字');
+  return value.trim();
+}
+async function handle(message: { type: string; text?: unknown; settings?: object; accent?: unknown }) {
+  if (message.type === 'pronounce') {
+    const text = validateText(message.text);
+    if (text.length > 80 || !/^[a-zA-Z][a-zA-Z'’ -]*$/.test(text)) throw new Error('仅支持英文单词和短语发音');
+    const response = await fetch(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=en&type=${message.accent === 'uk' ? 1 : 2}`, { signal: AbortSignal.timeout(12000), credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!response.ok) throw new Error('发音加载失败，请重试');
+    return Array.from(new Uint8Array(await response.arrayBuffer()));
   }
-  if (param.headers) {
-    options.headers = param.headers;
+  if (message.type === 'dictionary') {
+    const text = validateText(message.text);
+    const cached = dictionaryCache.get(text);
+    if (cached && cached.until > Date.now()) return cached.value;
+    const value = await request(`https://dict.youdao.com/jsonapi?q=${encodeURIComponent(text)}`, true);
+    if (dictionaryCache.size >= 100) dictionaryCache.delete(dictionaryCache.keys().next().value!);
+    dictionaryCache.set(text, { value, until: Date.now() + 300000 });
+    return value;
   }
-  return fetch(url, options).then(async (res) => {
-    //console.log(res);
-    if (!res.ok) {
-      return {
-        error: "fetch failed",
-      };
+  if (message.type === 'translate') {
+    const text = validateText(message.text);
+    const settings = normalizeSettings(message.settings ?? await getSettings());
+    const youdao = async () => {
+      const chinese = /[\u3400-\u9fff]/.test(text);
+      const source = settings.source === 'auto' ? (chinese ? 'zh-CN' : 'en') : settings.source;
+      const foreign = source.startsWith('zh') ? settings.target : source;
+      if (!((source.startsWith('zh') && !settings.target.startsWith('zh')) || (!source.startsWith('zh') && settings.target === 'zh-CN')) || !['en', 'ja', 'ko', 'fr'].includes(foreign)) {
+        throw new Error('有道支持中英、中日、中韩、中法互译。其他语言请使用 Google；日、韩、法语请明确选择源语言。');
+      }
+      return { html: await request(`https://www.youdao.com/result?word=${encodeURIComponent(text)}&lang=${foreign}`, false), provider: '有道翻译' };
+    };
+    if (settings.engine === 'youdao') return youdao();
+    try {
+      const params = new URLSearchParams({ client: 'gtx', sl: settings.source, tl: settings.target, dt: 't', q: text });
+      return { text: parseGoogle(await request(`https://translate.googleapis.com/translate_a/single?${params}`, true)), provider: 'Google 翻译' };
+    } catch (error) {
+      if (settings.engine !== 'auto') throw error;
+      try { return await youdao(); } catch { throw new Error('翻译请求失败，请检查网络，或在设置中选择其他翻译服务和源语言后重试。'); }
     }
-    if (responseType === "dataURL") {
-      const blob = await res.blob();
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = function () {
-          resolve(this.result);
-        };
-        reader.readAsDataURL(blob);
-      });
-    } else if (responseType === "text") {
-      return await res.text();
-    } else if (responseType === "json") {
-      return await res.json();
-    }
-  });
-};
-Browser.runtime.onInstalled.addListener(() => {
-  Browser.contextMenus.create({
-    id: "translate",
-    title: "translate",
-    contexts: ["selection"],
-    documentUrlPatterns: [
-      "http://*/*",
-      "https://*/*",
-      "file://*/*",
-      "ftp://*/*",
-    ],
-  });
+  }
+  throw new Error('未知请求');
+}
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (sender.id !== chrome.runtime.id || !['dictionary', 'translate', 'pronounce'].includes(message?.type)) return false;
+  handle(message).then(data => respond({ data })).catch(error => respond({ error: error instanceof Error ? error.message : '请求失败，请稍后重试' }));
+  return true;
 });
-Browser.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "translate") {
-    if (!tab?.id) {
-      return;
-    }
-    const message:ExtensionMessage = {
-      type: 'showCardAndPosition'
-    }
-    Browser.tabs.sendMessage(tab?.id, message);
-  }
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => chrome.contextMenus.create({ id: 'translate', title: `使用 ${brand.name} 翻译`, contexts: ['selection'] }));
 });
-Browser.runtime.onMessage.addListener(async (message: ExtensionMessage) => {  
-  if (message.type === "fetch") {
-    const res = await backgroundFetch(message.payload);
-    return res;
+async function openSelection(tabId?: number, text?: string) {
+  if (tabId === undefined) return;
+  try { await chrome.tabs.sendMessage(tabId, { type: 'open-translation', text }); }
+  catch {
+    if (text) await chrome.storage.session.set({ pendingText: text });
+    try { await chrome.action.openPopup(); } catch { /* The toolbar popup remains available. */ }
   }
-  if (message.type === "openOptions") {
-    return await Browser.runtime.openOptionsPage();
-  }
-  if (message.type === "auth") {
-    if (chrome && chrome.identity && chrome.identity.getAuthToken) {
-      const tokenInfo = await chrome.identity.getAuthToken({
-        interactive: true,
-      });
-      const res = await fetch(
-        `https://www.googleapis.com/oauth2/v3/userinfo?alt=json&access_token=${tokenInfo.token}`
-      );
-      return await res.json();
-    }
-  }
-  if (message.type === 'captureScreen') {
-    return await Browser.tabs.captureVisibleTab()
-  }
+}
+chrome.contextMenus.onClicked.addListener((info, tab) => { if (info.menuItemId === 'translate') void openSelection(tab?.id, info.selectionText); });
+chrome.commands.onCommand.addListener(async command => {
+  if (command !== 'translate-selection') return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  await openSelection(tab?.id);
 });
-Browser.runtime.onMessageExternal.addListener(async (message:ExternalMessage) => {
-  if (message.type === 'getUser') {
-    const setting =  await getSetting();
-    return setting.userInfo
-  }
-})
